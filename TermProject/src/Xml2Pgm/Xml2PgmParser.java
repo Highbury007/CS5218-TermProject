@@ -13,7 +13,6 @@ import javax.xml.parsers.*;
 
 import dataStructure.*;
 import dataStructure.Program.AbstractExpr;
-import dataStructure.Program.FunDefExpr;
 import dataStructure.Program.Pgm;
 /**
  * @author WuJun A0106507M
@@ -46,7 +45,7 @@ public class Xml2PgmParser {
 			}
 		}
 		
-		System.out.println(FunDefExpr.class.toString().split(" ")[1]);
+		//System.out.println(FunDefExpr.class.toString().split(" ")[1]);
 		return program;
 	}
 }

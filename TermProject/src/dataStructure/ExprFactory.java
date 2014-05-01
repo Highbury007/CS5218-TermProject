@@ -15,7 +15,7 @@ import java.util.HashMap;
  */
 public class ExprFactory {
 	
-	private Map<String, String> element2ClassName;
+	private static Map<String, String> element2ClassName;
 	
 	public ExprFactory() {
 		// TODO Auto-generated constructor stub
@@ -37,21 +37,16 @@ public class ExprFactory {
 	//	return getFactoryInstance().getExpressionInstance(elementName);
 	//}
 	*/
+	
 	public AbstractExpr getExprInstance (String elementName) {
-		//AbstractExpr expr = null;
-		//getFactoryInstance();
 		try {
 			String name = element2ClassName.get(elementName);
 			if(name != null){
-				//Class t = Class.forName(name);
 				return (AbstractExpr)Class.forName(name).newInstance();
-			}
-			
+			}			
 		}catch (Exception e) {
-			//expr = new ErrorExpr();
-			System.out.println(e);
-			return null;
-			
+			//System.err.println(e);
+			e.printStackTrace();
 		}
 		return null;
 	}

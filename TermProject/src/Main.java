@@ -4,8 +4,7 @@ import java.io.File;
 //import java.io.IOException;
 //import java.lang.reflect.Constructor;
 
-
-import dataStructure.*;
+import typeInferAnalyzer.WulAlgorithm;
 import dataStructure.Program.Pgm;
 import Xml2Pgm.*;
 
@@ -44,6 +43,9 @@ public class Main {
 		}catch (Exception e) {
 			System.out.println(e.getStackTrace());
 		}
+		
+		WulAlgorithm typeAnalyzer = new WulAlgorithm();
+		typeAnalyzer.isTypeCheckPass(program);
 		//System.out.println(program.getFunDefs().get(0).toString());
 		//Pgm program1 = new Pgm();
 		//System.out.println(program.toString());
@@ -58,6 +60,7 @@ public class Main {
 		//str1 = str2;
 		//System.out.println();
 		/*Singleton Test
+
 		try{
 			Constructor con = IntAType.class.getDeclaredConstructor();
 			con.setAccessible(true);
@@ -74,6 +77,14 @@ public class Main {
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
+		*/
+		/*
+		AbstractAType t1 = new IntAType();
+		AbstractAType t2 = new BoolAType();
+		System.out.println("t1:" + t1.toString());
+		System.out.println("t2:" + t2.toString());
+		t1 = t2;
+		System.out.println("t1:" + t1.toString());
 		*/
 	}
 }

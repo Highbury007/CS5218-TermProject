@@ -60,10 +60,10 @@ public class FactoryHelper {
 	};
 	
 	public static final String[] typeClassNames = {
-		PairAType.class.toString().split(regex)[1],
-		IntAType.class.toString().split(regex)[1],
-		NullListAType.class.toString().split(regex)[1],
-		BoolAType.class.toString().split(regex)[1], 
+		TVarAType.class.toString().split(regex)[1],		//FunDef
+		IntAType.class.toString().split(regex)[1],		//num
+		ListAType.class.toString().split(regex)[1],		//Nil
+		BoolAType.class.toString().split(regex)[1], 	//bool
 		TVarAType.class.toString().split(regex)[1],		//Var
 		TVarAType.class.toString().split(regex)[1], 	//If
 		TVarAType.class.toString().split(regex)[1], 	//FunCall
@@ -74,8 +74,10 @@ public class FactoryHelper {
 		BoolAType.class.toString().split(regex)[1], 	//NullTest
 		TVarAType.class.toString().split(regex)[1], 	//Bracketed
 		
-		endFlag
-		
+		endFlag	
+	};
+	
+	public static final String[] wulClassName = {
 		
 	};
 	public FactoryHelper() {

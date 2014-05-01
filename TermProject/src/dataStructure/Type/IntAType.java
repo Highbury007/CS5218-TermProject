@@ -1,10 +1,5 @@
 package dataStructure.Type;
 
-import java.util.Vector;
-
-import dataStructure.ATypeFactory;
-import dataStructure.Program.AbstractExpr;
-
 /**
  * @author WuJun A0106507M
  *
@@ -12,27 +7,38 @@ import dataStructure.Program.AbstractExpr;
 public class IntAType extends AbstractAType {
 
 	private static final String typeInfo = "INT";
-	public IntAType() {
+	private IntAType() {
 		// TODO Auto-generated constructor stub
+		siblingType = null;
 		System.out.println(this.toString());
 	}
-	@Override
-	public void populateType(AbstractExpr expr, ATypeFactory builder) {
-		// TODO Auto-generated method stub
-		
+	
+	private static class SingletonHolder {
+		private final static AbstractAType INSTANCE = new IntAType();
 	}
-
-	@Override
-	public Vector<AbstractAType> getTypeRefs() {
-		// TODO Auto-generated method stub
-		return null;
+	
+	public static AbstractAType getInstance() {
+		System.out.println(SingletonHolder.INSTANCE.toString());
+		return SingletonHolder.INSTANCE;
 	}
-
+	
 	@Override
 	public String getTypeInfo() {
 		// TODO Auto-generated method stub
-		return typeInfo;
+		if(null == siblingType) {
+			return typeInfo;
+		}else {
+			return typeInfo + "->" + siblingType.getTypeInfo();
+		}
 	}
-	
-	
+	@Override
+	public void setTypeInfo(String value) {
+		// TODO Auto-generated method stub
+		System.err.println(this.toString() + ":INT is constant!");
+	}
+	@Override
+	public void setSibling(AbstractAType ae) {
+		System.err.println(this.toString() + ":INT is constant! No sibling");
+	}
+
 }

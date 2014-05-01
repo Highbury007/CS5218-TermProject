@@ -4,60 +4,29 @@
 package dataStructure.Program;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
-
-import org.w3c.dom.Node;
-
-import dataStructure.ATypeFactory;
-import dataStructure.ExprFactory;
-import dataStructure.Type.AbstractAType;
 /**
  * @author Wu Jun A0106507M
  *
  */
-public class Pgm extends AbstractExpr{
-	//private List<AbstractExpr> funDefinitions;
-
+public class Pgm{
+	private List<AbstractExpr> funDefinitions;
+	//public static Map<FunDefExpr, HashMap<String, AbstractExpr>> symbolTables;
+	
+	public static Map<FunDefExpr, HashMap<String, AbstractExpr>> symbolTables;
 	public Pgm () {
-		//funDefinitions = new Vector<AbstractExpr>();
-		init();
+		funDefinitions = new Vector<AbstractExpr>();
+		symbolTables = new HashMap<FunDefExpr, HashMap<String, AbstractExpr>>();
 	}
 	
-	//public void addFunDef(AbstractExpr def) {
-	//	funDefinitions.add(def);
+	public static AbstractExpr getSymbol(FunDefExpr e, String symbolName) {
+		return symbolTables.get(e).get(symbolName);
+	}
+	//public void populateSymbolTables(FunDefExpr e, HashMap<String, AbstractExpr> table) {
 	//}
 	
 	public List<AbstractExpr> getFunDefs() {
-		return this.exprs;
-	}
-
-	@Override
-	protected void init() {
-		// TODO Auto-generated method stub
-		this.exprs = new Vector<AbstractExpr>();
-	}
-
-	@Override
-	protected String getExprAttribute() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public List<AbstractExpr> getAbstractExprsRef() {
-		// TODO Auto-generated method stub
-		return this.exprs;
-	}
-
-	@Override
-	protected void printError() {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void populateExpr(Node xmlNode, ExprFactory builder) {
-		// TODO Auto-generated method stub
-		
+		return this.funDefinitions;
 	}
 }
