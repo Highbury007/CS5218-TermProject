@@ -1,4 +1,4 @@
-package Xml2Pgm;
+package xml2Pgm;
 import java.io.File;
 import java.io.IOException;
 

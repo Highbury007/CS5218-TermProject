@@ -4,9 +4,10 @@ import java.io.File;
 //import java.io.IOException;
 //import java.lang.reflect.Constructor;
 
+
 import typeInferAnalyzer.WulAlgorithm;
+import xml2Pgm.*;
 import dataStructure.Program.Pgm;
-import Xml2Pgm.*;
 
 /**
  * @author OrangeR

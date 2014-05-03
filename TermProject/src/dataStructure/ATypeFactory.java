@@ -24,15 +24,6 @@ public class ATypeFactory {
 		}
 	}
 	
-	/*
-	private static class SingletonHandler{
-		private static final ATypeFactory INSTANCE = new ATypeFactory(); 
-	}
-	
-	private static ATypeFactory getInstance() {
-		return SingletonHandler.INSTANCE;
-	}
-	*/
 	public AbstractAType getATypeInstance(AbstractExpr source) {
 		/*
 		try {
@@ -45,18 +36,20 @@ public class ATypeFactory {
 		}
 		*/
 		
-		if(source instanceof FunDefExpr  || source instanceof IfExpr ||
-		   source instanceof FunCallExpr || source instanceof BinaryOpExpr ||
-		   source instanceof CarExpr || source instanceof VariableExpr ||
-		   source instanceof BracketedExpr) {
+		if(source instanceof FunDefExpr   || source instanceof IfExpr 
+		|| source instanceof FunCallExpr  || source instanceof BinaryOpExpr 
+		|| source instanceof VariableExpr || source instanceof BracketedExpr) {
 			return new TVarAType();
-		}else if(source instanceof NullListExpr 
-				|| source instanceof CdrExpr
-				|| source instanceof ConsExpr) {
-			return new ListAType();
+		}else if(source instanceof NullListExpr || source instanceof CdrExpr
+			  || source instanceof CarExpr      || source instanceof ConsExpr
+			  || source instanceof NullListTestExpr ) {
+			AbstractAType listT = new ListAType();
+			AbstractAType listCore = new TVarAType();
+			((ListAType) listT).setListCore(listCore);
+			return listT;
 		} 
 		else {
-			if(source instanceof NullListTestExpr || source instanceof BoolConstantExpr) {
+			if(source instanceof BoolConstantExpr) {
 				return BoolAType.getInstance();
 			}else if(source instanceof NumConstantExpr) {
 				return IntAType.getInstance();
