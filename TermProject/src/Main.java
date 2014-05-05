@@ -5,6 +5,11 @@ import java.io.File;
 //import java.lang.reflect.Constructor;
 
 
+
+import java.util.List;
+import java.util.Vector;
+
+import batAnalyzer.BTAnalyzer;
 import typeInferAnalyzer.WulAlgorithm;
 import xml2Pgm.*;
 import dataStructure.Program.Pgm;
@@ -24,7 +29,7 @@ public class Main {
 	 */
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		if(!(args.length == 1 || args.length == 3)) {
+		if(args.length == 0) {
 			System.err.println("Usage: java input-file-path static/dynamic static/dynamic");
 			System.exit(1);
 		}
@@ -45,47 +50,18 @@ public class Main {
 			System.out.println(e.getStackTrace());
 		}
 		
-		WulAlgorithm typeAnalyzer = new WulAlgorithm();
-		typeAnalyzer.isTypeCheckPass(program);
-		//System.out.println(program.getFunDefs().get(0).toString());
-		//Pgm program1 = new Pgm();
-		//System.out.println(program.toString());
-		//System.out.println(program1.toString());
-		//System.out.println(program == program1);
-		//program1 = program;
-		//System.out.println(program.toString());
-		//System.out.println(program1.toString());
-		//System.out.println(program == program1);
-		//String str1 = new String("str1");
-		//String str2 = new String("str2");
-		//str1 = str2;
-		//System.out.println();
-		/*Singleton Test
-
-		try{
-			Constructor con = IntAType.class.getDeclaredConstructor();
-			con.setAccessible(true);
-			IntAType iAT1 = (IntAType)con.newInstance();
-			IntAType iAT2 = (IntAType)con.newInstance();
-			IntAType iAT3 = IntAType.getInstance();
-			IntAType iAT4 = IntAType.getInstance();
-			System.out.println(iAT1.toString());
-			System.out.println(iAT2.toString());
-			System.out.println(iAT3.toString());
-			System.out.println(iAT4.toString());
-			System.out.println(iAT1.equals(iAT2));
-			System.out.println(iAT3.equals(iAT4));
-		}catch (Exception e) {
-			e.printStackTrace();
+		if(args.length == 1) {
+			WulAlgorithm typeAnalyzer = new WulAlgorithm();
+			typeAnalyzer.isTypeCheckPass(program);
+			System.out.println("No Type Error!");
+		}else {
+			List<String> bTAInput = new Vector<String>();
+			for(int i = 1; i < args.length; i ++) {
+				bTAInput.add(args[i]);
+			}
+			
+			BTAnalyzer bTAnalyzer = new BTAnalyzer();
+			bTAnalyzer.analyzeBtv(program, bTAInput);
 		}
-		*/
-		/*
-		AbstractAType t1 = new IntAType();
-		AbstractAType t2 = new BoolAType();
-		System.out.println("t1:" + t1.toString());
-		System.out.println("t2:" + t2.toString());
-		t1 = t2;
-		System.out.println("t1:" + t1.toString());
-		*/
 	}
 }

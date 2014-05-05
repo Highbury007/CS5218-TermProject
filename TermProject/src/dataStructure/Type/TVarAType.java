@@ -31,10 +31,4 @@ public class TVarAType extends AbstractAType {
 		// TODO Auto-generated method stub
 		typeInfo = value;
 	}
-	/*
-	@Override
-	public void setSibling(AbstractAType at) {
-		System.err.println(this.toString() + ":Type Variable No sibling!");
-	}
-	*/
 }

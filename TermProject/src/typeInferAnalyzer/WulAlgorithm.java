@@ -30,9 +30,6 @@ public class WulAlgorithm {
 	private Map<String, AbstractExpr> funName2FunExpr;
 	//private Map<AbstractExpr, AbstractExpr> funExpr2FunVar;
 	private Map<String, AbstractExpr> funName2FunVar;
-	//private Set<AbstractExpr> allATypeVars;
-	//private List<Substitution> allSubstitutions;
-	private List<Substitution> substitutionGroup;
 	private ATypeFactory typeBuilder;
 	private int enVersion;
 	
@@ -44,8 +41,6 @@ public class WulAlgorithm {
 		funName2FunExpr = new HashMap<String, AbstractExpr>();
 		funName2FunVar = new HashMap<String, AbstractExpr>();
 		//funExpr2FunVar = new HashMap<AbstractExpr, AbstractExpr>();
-		//allATypeVars = new HashSet<AbstractExpr>();
-		substitutionGroup = new Vector<Substitution>();
 	}
 
 	public boolean isTypeCheckPass(Pgm program) {
@@ -54,7 +49,6 @@ public class WulAlgorithm {
 			//System.out.println(program.getFunDefs().size());
 			for(AbstractExpr ae : program.getFunDefs()) {
 				funName2FunExpr.put(ae.getExprAttribute(), ae);
-				//AbstractExpr value = new VariableExpr(ae.getExprAttribute());
 				//funName2FunVar.put(ae.getExprAttribute(), value);
 			}
 		}
@@ -67,7 +61,6 @@ public class WulAlgorithm {
 				wULMethodDecider(ae);
 				System.out.println("------------------------------------");
 				for(AbstractExpr var : ae.getAbstractExpressions()) {
-					//System.out.print(env.get(var).getTypeInfo() + " ");
 					System.out.println(env.get(var).toString());
 					System.out.println(env.get(var).getTypeInfo());
 				}
@@ -144,10 +137,142 @@ public class WulAlgorithm {
 	//using entry to store the return type and set of substitution
 	//key : type, value: set of substitution
 	
+	//when it does the unification, 
+	//bring the two type variables' corresponding substitution
+	//in the unifyType function, find the two groups, then find the
+	//most accurate information of the two groups respectively.
+	//compare them, if type conflict, return error;
+	
+	//to handle with the variable inList error,
+	//may some situation may need the information in environment
+	//only use the refined environment information statically,
+	//the information is not sufficient. So need to fetch the 
+	//environment related substitution to reveal the relationships
+	//of variables related with the environment variable
+	//For instance:
+	// define f(a, b, c) = call f(cons(b,nil), c, a)
+	//a is in the cons(b, nil), and a <-> c <-> b
+	//so the program should give a type error for this
+	private List<Substitution> collectEnvRefinements(List<Substitution> refinements) {
+		if(refinements != null && refinements.size() != 0) {
+			Set<AbstractAType> envTVarSet = new HashSet<AbstractAType>(env.getValueList());
+			List<Substitution> result = new Vector<Substitution>();
+			boolean updated = true;
+			while(updated) {
+				updated = false;
+				for(Substitution st : refinements) {
+					//if(envTVarSet.contains(st.getLeft()) || envTVarSet.contains(st.getRight())) {
+					//	result.add(st);
+					updated |= envTVarSet.add(st.getLeft());
+					updated |= envTVarSet.add(st.getRight());
+					if(updated) {
+						result.add(st);
+					}
+				}
+			}
+			return result;
+		}
+		return null;
+	}
+	
+	private void updateEnvironment(List<Substitution> tVar2ATypeList) {
+		if(null != tVar2ATypeList && tVar2ATypeList.size() != 0){
+			for(Substitution st : tVar2ATypeList) {
+				AbstractAType inEnvTypeVar = st.getLeft();
+				AbstractAType value = null;
+				if(env.containsValue(st.getLeft())) {
+					value = st.getRight();
+				}else if (env.containsValue(st.getRight())) {
+					inEnvTypeVar = st.getRight();
+					value = st.getLeft();
+				}else {
+					continue;
+				}
+							
+				for(AbstractExpr ae : env.getKeyList()) {
+					if(env.get(ae).equals(inEnvTypeVar)) {
+						//only refine the environment at least 
+						//when it can get more or equal accurate information
+						if(env.get(ae).getTypeInfo() == "" && value.getTypeInfo() != "")
+							//env.setValue(ae, value);
+							env.get(ae).setTypeInfo(value.getTypeInfo());
+					}
+				}	
+			}	
+		}
+	}
+	
+	private void populateSubstitution(List<Substitution> target, List<Substitution> source) {
+		if(null != source && null != target){
+			if(source.size() != 0) {
+				target.addAll(source);		
+			}
+		}
+		System.out.println(target.size());
+		
+		System.out.println("************************");
+		for(Substitution st : target) {
+			System.out.println(st.getLeft().toString() + " ------- " + st.getRight().toString());
+			System.out.println(st.getLeft().getTypeInfo() + " ------- " + st.getRight().getTypeInfo());
+		}
+		System.out.println("************************");
+	}
+	
+	
+	private Set<AbstractAType> refineType(AbstractAType key, List<Substitution> substitutionList) {
+		if(substitutionList != null && substitutionList.size() != 0) {
+			String typeInfo = "";
+			//make it more accurate
+			Set<AbstractAType> collection = new HashSet<AbstractAType>();
+			collection.add(key);
+			boolean updated = true;
+			while(updated) {
+				updated = false;
+				for(Substitution st : substitutionList) {
+					if(collection.contains(st.getLeft()) && !collection.contains(st.getRight())) {
+						if(st.getRight().getTypeInfo().length() > typeInfo.length()) {
+							typeInfo = st.getRight().getTypeInfo();
+						}
+						collection.add(st.getRight());
+						updated = true;
+					}else if(collection.contains(st.getRight()) && !collection.contains(st.getLeft())) {
+						if(st.getLeft().getTypeInfo().length() > typeInfo.length()) {
+							typeInfo = st.getLeft().getTypeInfo();
+						}
+						collection.add(st.getLeft());
+						updated = true;
+					}
+				}
+			}
+			//remove the key
+			collection.remove(key);
+			//make the information more concrete
+			for(AbstractAType at : collection) {
+				if(at instanceof TVarAType) {
+					at.setTypeInfo(typeInfo);
+				}
+			}
+			
+			if(key instanceof TVarAType)
+				key.setTypeInfo(typeInfo);
+			if(collection.size() == 0)
+				return null;
+			else 
+				return collection;
+		}
+		return null;
+	}
+
+	private void methodTraceInfo() {
+		System.out.println(Thread.currentThread().getStackTrace()[2].getMethodName());
+	}
+	
+	//*******************************************************Wul Algorithm***************************************************//
 	//apply the named function rule
 	private Entry<AbstractAType, List<Substitution>> wULFunDefExpr(AbstractExpr input) {
 		methodTraceInfo();
 		//if the function has been called before, it must has been analyzed
+		//used for outer loop
 		String funName = ((FunDefExpr) input).getFunName();
 		if(funName2FunVar.get(funName) != null) {
 			return wULMethodDecider(funName2FunVar.get(funName));
@@ -171,32 +296,21 @@ public class WulAlgorithm {
 		bodyTypeVar = value;
 		
 		//generate a function variable and put it into environment;
-		//String funName = ((FunDefExpr) input).getFunName();
 		AbstractExpr funTypeVar = new VariableExpr(funName);
 		funName2FunVar.put(funName, funTypeVar);
 		//only map the function Variable to the body type
 		//the variable list type info can be got from the function name
 		//using function name -> function expression -> function variable list
+		
 		env.put(funTypeVar, bodyTypeVar);
 		
 		AbstractExpr funBodyExpr = ((FunDefExpr) input).getFunBody();
 		
 		//apply the rule to function body
 		Entry<AbstractAType, List<Substitution>> funBodyTs = wULMethodDecider(funBodyExpr);
-		//List<Substitution> envRefinements = collectEnvRefinements(funBodyTs.getValue());
-		//refine the function body type
-		//refineType(env.get(funBodyExpr), funBodyTs.getValue());
 		
 		List<Substitution> funBodyUnification = unifyType(funBodyTs.getKey(), null, env.get(funBodyExpr), funBodyTs.getValue());
 		
-		//refine function body type
-		//refineType(funBodyTs.getKey(), funBodyUnification);
-		
-		//refine the varList 
-		//for(AbstractExpr ae : ((FunDefExpr) input).getFunVarList()) {
-		//	refineType(env.get(ae), funBodyUnification);
-		//}
-
 		//construct result;
 		List<Substitution> substitution = new Vector<Substitution>();
 	
@@ -206,7 +320,6 @@ public class WulAlgorithm {
 		Entry<AbstractAType, List<Substitution>> result 
 			= new SimpleEntry<AbstractAType, List<Substitution>>(funBodyTs.getKey(), substitution);
 		
-		//System.out.println(start.getTypeInfo());
 		//print out the information
 		for(AbstractExpr ae : input.getAbstractExpressions()) {
 			System.out.print(env.get(ae).getTypeInfo() + " ");
@@ -256,7 +369,6 @@ public class WulAlgorithm {
 	private Entry<AbstractAType, List<Substitution>> wULIfExpr(AbstractExpr input) {
 		methodTraceInfo();
 
-		
 		//apply rule to condition
 		Entry<AbstractAType, List<Substitution>> conditionTs 
 			= wULMethodDecider(((IfExpr) input).getCondition());
@@ -275,8 +387,6 @@ public class WulAlgorithm {
 			= wULMethodDecider(((IfExpr) input).getFBranch());
 				
 		//refine the condition
-		//refineType(conditionTs.getKey(), trueBranchTs.getValue());
-		//refineType(conditionTs.getKey(), falseBranchTs.getValue());
 		List<Substitution> conditionRefinement = new Vector<Substitution>();
 		populateSubstitution(conditionRefinement, conditionTs.getValue());
 		populateSubstitution(conditionRefinement, trueBranchTs.getValue());
@@ -285,8 +395,6 @@ public class WulAlgorithm {
 		List<Substitution> conditionUnification = unifyType(conditionTs.getKey(), conditionRefinement, BoolAType.getInstance(), null);
 		
 		//refine the true branch		
-		//refineType(trueBranchTs.getKey(), falseBranchTs.getValue());
-		//refineType(trueBranchTs.getKey(), conditionUnification);
 		List<Substitution> trueBranchRefinement = new Vector<Substitution>();
 		
 		populateSubstitution(trueBranchRefinement, trueBranchTs.getValue());
@@ -294,10 +402,8 @@ public class WulAlgorithm {
 		populateSubstitution(trueBranchRefinement, conditionUnification);
 		List<Substitution> envRefinements = collectEnvRefinements(conditionTs.getValue());
 		populateSubstitution(trueBranchRefinement, envRefinements);
-		//populateSubstitution(trueBranchRefinement, conditionUnification);
-		
+
 		//refine the false branch
-		//refineType(falseBranchTs.getKey(), conditionUnification);
 		List<Substitution> falseBranchRefinement = new Vector<Substitution>();
 		populateSubstitution(falseBranchRefinement, falseBranchTs.getValue());
 		populateSubstitution(falseBranchRefinement, conditionUnification);
@@ -308,10 +414,6 @@ public class WulAlgorithm {
 		List<Substitution> trueFalseBranchUnification 
 			= unifyType(trueBranchTs.getKey(), trueBranchRefinement, falseBranchTs.getKey(), falseBranchRefinement);
 
-		//refine the result(false branch)
-		//refineType(falseBranchTs.getKey(), conditionUnification);
-		//refineType(falseBranchTs.getKey(), trueFalseBranchUnification);
-		
 		List<Substitution> resultTsInfo = new Vector<Substitution>();
 		populateSubstitution(resultTsInfo, trueBranchTs.getValue());
 		populateSubstitution(resultTsInfo, falseBranchTs.getValue());
@@ -342,7 +444,6 @@ public class WulAlgorithm {
 		//System.out.println(argExprList.size());
 		List<Substitution> envRefinements = collectEnvRefinements(funVarTs.getValue());
 		
-		//populateSubstitution(resultTsInfo, funVarTs.getValue());
 		for(int i = 0; i < argExprList.size(); i ++) {
 			updateEnvironment(resultTsInfo);
 			Entry<AbstractAType, List<Substitution>> argTs 
@@ -352,31 +453,22 @@ public class WulAlgorithm {
 		}
 		
 		//unify the varList and argList
-		//refineType(funVarTs.getKey(), resultTsInfo);
-		
 		AbstractExpr funExpr = funName2FunExpr.get(funName);
 		List<AbstractExpr> varExprList = ((FunDefExpr) funExpr).getFunVarList();
-		//System.out.println(funExpr.getAbstractExpressions().size());
-		//System.out.println(varExprList.size());
 		if(varExprList.size() != argExprList.size()) {
 			System.err.println("VarList and argList does not match!");
 			System.exit(enVersion);
 		}
 		
 		List<Substitution> varArgUnification = new Vector<Substitution>();
-		//put in the necessary environmen	t refinements
+		//put in the necessary environment refinements
 		populateSubstitution(varArgUnification, envRefinements);
 		populateSubstitution(varArgUnification, resultTsInfo);
 		
 		populateSubstitution(resultTsInfo, funVarTs.getValue());
 		List<Substitution> varArgRefinement = resultTsInfo;
 		
-		//populateSubstitution(varArgRefinement, funVarTs.getValue());
-		//populateSubstitution(varArgRefinement, resultTsInfo);
 		for(int i = 0; i < varExprList.size(); i ++) {
-			//refineType(env.get(varExprList.get(i)), varArgUnification);
-			//System.out.println(i);
-			//refineType(argListTypeInfo.get(i), varArgUnification);
 			List<Substitution> tVar2AType = 
 				unifyType(env.get(varExprList.get(i)), varArgRefinement, argListTypeInfo.get(i), varArgUnification);
 			populateSubstitution(varArgUnification, tVar2AType);
@@ -384,13 +476,9 @@ public class WulAlgorithm {
 		}
 		//unify the function body
 		AbstractAType funBodyTypeVar = new TVarAType();
-		//refineType(funVarTs.getKey(), varArgUnification);
 		
 		List<Substitution> funBodyUnification = unifyType(funVarTs.getKey(), varArgRefinement, funBodyTypeVar, null);
 		
-		//refineType(funBodyTypeVar, funBodyUnification);
-		
-		//populateSubstitution(resultTsInfo, varArgUnification);
 		populateSubstitution(resultTsInfo, funBodyUnification);
 		
 		Entry<AbstractAType, List<Substitution>> result
@@ -409,8 +497,6 @@ public class WulAlgorithm {
 		//apply rule to the right operand
 		Entry<AbstractAType, List<Substitution>> rightOpdTs
 			= wULMethodDecider(((BinaryOpExpr) input).getRightOpd());
-
-		//refineType(leftOpdTs.getKey(), rightOpdTs.getValue());
 		
 		//unify the left operand
 		List<Substitution> leftOpdRefinements = new Vector<Substitution>();
@@ -420,7 +506,6 @@ public class WulAlgorithm {
 		List<Substitution> leftOpdUnification = unifyType(leftOpdTs.getKey(), leftOpdRefinements, opdAType, null);
 
 		//unify the right operand
-		//refineType(rightOpdTs.getKey(), leftOpdUnification);
 		List<Substitution> rightOpdRefinements = new Vector<Substitution>();
 		populateSubstitution(rightOpdRefinements, rightOpdTs.getValue());
 		populateSubstitution(rightOpdRefinements, leftOpdUnification);
@@ -453,19 +538,14 @@ public class WulAlgorithm {
 			= wULMethodDecider(((ConsExpr) input).getTailExpr());
 		
 		//construct a list of varT
-		//AbstractAType listCoreTVar = new TVarAType();
-		//AbstractAType listT = new ListAType();
-		//listT.setSibling(listCoreTVar);
 		AbstractAType listT = typeBuilder.getATypeInstance(input);
 		//cons tail must be a list
 		List<Substitution> consTailRefinements = new Vector<Substitution>();
 		populateSubstitution(consTailRefinements, consTailTs.getValue());
 		populateSubstitution(consTailRefinements, collectEnvRefinements(consHeadTs.getValue()));
 		List<Substitution> listTypeUnification = unifyType(consTailTs.getKey(), consTailTs.getValue(), listT, null);
+		populateSubstitution(listTypeUnification, consTailTs.getValue());
 		
-		//refineType(consHeadTs.getKey(), consTailTs.getValue());
-		//refineType(consHeadTs.getKey(), listTypeUnification);
-		//refineType(((ListAType) listT).getListCore(), listTypeUnification);
 		//the cons's tail list core's type must be the same as the cons's head's type
 		List<Substitution> resultTSInfo = new Vector<Substitution>();
 		populateSubstitution(resultTSInfo, consHeadTs.getValue());
@@ -474,24 +554,12 @@ public class WulAlgorithm {
 		
 		List<Substitution> listCoreUnification 
 			= unifyType(consHeadTs.getKey(), resultTSInfo, ((ListAType) listT).getListCore(), listTypeUnification);
-		
-		//refineType(consHeadTs.getKey(), consTailTs.getValue());
-		//refineType(consHeadTs.getKey(), listTypeUnification);
-		//refineType(consHeadTs.getKey(), listCoreUnification);
-		//refineType(consHeadTs.getKey(), consTailTs.getValue());
-		//refineType(((ListAType) listT).getListCore(), listTypeUnification);
-		//refineType(((ListAType) listT).getListCore(), listCoreUnification);
-
-
-		//List<Substitution> resultTSInfo = new Vector<Substitution>();
-		//populateSubstitution(resultTSInfo, consHeadTs.getValue());
-		//populateSubstitution(resultTSInfo, consTailTs.getValue());
-		//populateSubstitution(resultTSInfo, listTypeUnification);
+			  //unifyType(consHeadTs.getKey(), resultTSInfo, consTailTs.getKey().getSibling(), listTypeUnification);
 		populateSubstitution(resultTSInfo, listCoreUnification);
 		
 		//result type must be list type
 		Entry<AbstractAType, List<Substitution>> result 
-			= new SimpleEntry<AbstractAType, List<Substitution>>(listT, resultTSInfo);
+			= new SimpleEntry<AbstractAType, List<Substitution>>(consTailTs.getKey(), resultTSInfo);
 		
 		return result;
 	} 
@@ -502,14 +570,10 @@ public class WulAlgorithm {
 			= wULMethodDecider(((CarExpr) input).getEpxr());
 		
 		//construct a list of varT
-		//AbstractAType listCoreTVar = new TVarAType();
-		//AbstractAType listT = new ListAType();
-		//listT.setSibling(listCoreTVar);
 		AbstractAType listT = typeBuilder.getATypeInstance(input);
 		
 		//expression in car must be a list
 		List<Substitution> listTypeUnification = unifyType(exprTs.getKey(), exprTs.getValue(), listT, null);
-		//refineType(exprTs.getKey(), listTypeUnification);
 		
 		List<Substitution> resultTSInfo = new Vector<Substitution>();
 		populateSubstitution(resultTSInfo, exprTs.getValue());
@@ -517,7 +581,7 @@ public class WulAlgorithm {
 		
 		//result type must be the list core's type
 		Entry<AbstractAType, List<Substitution>> result 
-			= new SimpleEntry<AbstractAType, List<Substitution>>(((ListAType) listT).getListCore(), resultTSInfo);
+			= new SimpleEntry<AbstractAType, List<Substitution>>(exprTs.getKey().getSibling(), resultTSInfo);
 		
 		return result;
 	} 
@@ -528,14 +592,9 @@ public class WulAlgorithm {
 			= wULMethodDecider(((CdrExpr) input).getExpr());
 		
 		//construct a list of varT
-		//AbstractAType listCoreTVar = new TVarAType();
-		//AbstractAType listT = new ListAType();
-		//listT.setSibling(listCoreTVar);
 		AbstractAType listT = typeBuilder.getATypeInstance(input);
 		//expression in cdr must be a list
 		List<Substitution> listTypeUnification = unifyType(exprTs.getKey(), exprTs.getValue(), listT, null);
-	
-		//refineType(((ListAType) listT).getListCore(), listTypeUnification);
 		
 		List<Substitution> resultTSInfo = new Vector<Substitution>();
 		populateSubstitution(resultTSInfo, exprTs.getValue());
@@ -543,7 +602,7 @@ public class WulAlgorithm {
 		
 		//result type must be list type
 		Entry<AbstractAType, List<Substitution>> result 
-			= new SimpleEntry<AbstractAType, List<Substitution>>(listT, resultTSInfo);
+			= new SimpleEntry<AbstractAType, List<Substitution>>(exprTs.getKey(), resultTSInfo);
 		
 		return result;
 	} 
@@ -553,9 +612,6 @@ public class WulAlgorithm {
 		Entry<AbstractAType, List<Substitution>> nullListTestTs 
 			= wULMethodDecider(((NullListTestExpr) input).getExpr());
 		
-		//AbstractAType listCoreTVar = new TVarAType();
-		//AbstractAType listTVar = new ListAType();
-		//listTVar.setSibling(listCoreTVar);
 		AbstractAType listT = typeBuilder.getATypeInstance(input);
 		//expression in null list test must be a list
 		List<Substitution> listTypeUnification = unifyType(nullListTestTs.getKey(), nullListTestTs.getValue(), listT, null);
@@ -674,7 +730,6 @@ public class WulAlgorithm {
 			if(tVar == listT.getSibling()) { 
 				//tVar is the list core
 				tVarInListError(tVar, listT);
-				//return null;
 			} else {
 				//collection all the information in the list core
 				Set<AbstractAType> listCoreGroup = collectListCoreGroup(listT, listSTGroup);
@@ -684,19 +739,16 @@ public class WulAlgorithm {
 					if(tVarGroup.removeAll(listCoreGroup)) {
 						//two group has intersection
 						tVarInListError(tVar, listT);
-						//return null;
 					}
 				}else if(tVarGroup != null && listCoreGroup == null) {	
 					if(tVarGroup.contains(listT.getSibling())) {
 						//List's core in tVarGroup
 						tVarInListError(tVar, listT);
-						//return null;
 					}
 				}else if(tVarGroup == null && listCoreGroup != null) {
 					if(listCoreGroup.contains(tVar)) {
 						//tVar in list core's group
 						tVarInListError(tVar, listT);
-						//return null;
 					}
 				}
 				//tVar is not in ListT
@@ -731,20 +783,25 @@ public class WulAlgorithm {
 	private Set<AbstractAType> collectListCoreGroup(AbstractAType listT, List<Substitution> tVar2ATypeList) {
 		Set<AbstractAType> collection = new HashSet<AbstractAType>();
 		if(tVar2ATypeList != null) {
-			for(Substitution st : tVar2ATypeList) {
-				if(st.getLeft().equals(listT.getSibling()) 
-				|| st.getRight().equals(listT.getSibling())) {
-					collection.add(st.getLeft());
-					collection.add(st.getRight());
-					if(st.getLeft() instanceof ListAType) {
-						collection.addAll(collectListCoreGroup(st.getLeft(), tVar2ATypeList));
-					}
-					if(st.getRight() instanceof ListAType) {
-						collection.addAll(collectListCoreGroup(st.getRight(), tVar2ATypeList));
+			collection.add(listT.getSibling());
+			boolean updated = true;
+			while(updated) {
+				updated = false;
+				for(Substitution st : tVar2ATypeList) {
+					if(collection.contains(st.getLeft()) || collection.contains(st.getRight())) {
+						updated |= collection.add(st.getLeft());
+						updated |= collection.add(st.getRight());
+						if(st.getLeft() instanceof ListAType) {
+							updated |= collection.addAll(collectListCoreGroup(st.getLeft(), tVar2ATypeList));
+						}
+						if(st.getRight() instanceof ListAType) {
+							updated |= collection.addAll(collectListCoreGroup(st.getRight(), tVar2ATypeList));
+						}
 					}
 				}
 			}
 		}
+		collection.remove(listT.getSibling());
 		return collection;
 	}
 	
@@ -900,294 +957,5 @@ public class WulAlgorithm {
 		}
 		
 		return null;
-	}
-	
-	private List<Substitution> collectEnvRefinements(List<Substitution> refinements) {
-		if(refinements != null && refinements.size() != 0) {
-			Set<AbstractAType> envTVarSet = new HashSet<AbstractAType>(env.getValueList());
-			List<Substitution> result = new Vector<Substitution>();
-			for(Substitution st : refinements) {
-				if(envTVarSet.contains(st.getLeft()) || envTVarSet.contains(st.getRight())) {
-					result.add(st);
-					envTVarSet.add(st.getLeft());
-					envTVarSet.add(st.getRight());
-				}
-			}
-			return result;
-		}
-		return null;
-	}
-	
-	/*
-	private List<Substitution> unifyType(AbstractAType left, AbstractAType right) {
-		//Substitution var2Type = new Substitution();
-		//all int type
-		//String questionMark = "?";
-		if((left != null && right == null) 
-			|| (left == null && right != null)) {
-			System.err.println("Type error!");
-			System.exit(enVersion);
-			return null;
-		}
-		if((left instanceof IntAType && right instanceof IntAType) 
-			|| (left instanceof BoolAType && right instanceof BoolAType)
-			|| (left == right)) {
-			//do nothing;
-			return null;
-		}else if(left instanceof ListAType && right instanceof ListAType) {
-
-			List<Substitution> st = null;
-			if(left.getSibling() instanceof ListAType && right.getSibling() instanceof ListAType) {
-				st = unifyType(left.getSibling(), right.getSibling());
-			}
-			Substitution tVar2AType = new Substitution(left, right);
-			List<Substitution> tVar2ATypeList = new Vector<Substitution>();
-			tVar2ATypeList.add(tVar2AType);
-			if(st != null)
-				tVar2ATypeList.addAll(st);
-			return tVar2ATypeList;
-			
-		}else if((left instanceof ListAType && right instanceof TVarAType)
-				|| (left instanceof IntAType && right instanceof TVarAType)
-				|| (left instanceof BoolAType && right instanceof TVarAType)) {
-			if(right.getTypeInfo() != "" && !right.getTypeInfo().equals(left.getTypeInfo())){
-				System.err.println("Type Error: " + left.getTypeInfo() + " ---- " + right.getTypeInfo());
-				System.exit(enVersion);
-			}
-			
-			if(left instanceof ListAType) {
-				if(isListTContainsTVar(left, right)){
-					System.err.println("Error: The list contains the variable!");
-					System.exit(enVersion);
-				}
-			}
-			right.setSibling(left);
-			Substitution tVar2AType = new Substitution(right, left);
-			List<Substitution> tVar2ATypeList = new Vector<Substitution>();
-			tVar2ATypeList.add(tVar2AType);
-			return tVar2ATypeList;
-		}else if((left instanceof TVarAType && right instanceof ListAType)
-				|| (left instanceof TVarAType && right instanceof IntAType)
-				|| (left instanceof TVarAType && right instanceof BoolAType)){
-			if(left.getTypeInfo() != "" && !right.getTypeInfo().equals(left.getTypeInfo())){
-				System.err.println("Type Error: " + left.getTypeInfo() + " ---- " + right.getTypeInfo());
-				System.exit(enVersion);
-			}
-			
-			if(right instanceof ListAType) {
-				if(isListTContainsTVar(right, left)){
-					System.err.println("Error: The list contains the variable!");
-					System.exit(enVersion);
-				}
-			}
-			left.setSibling(right);
-			Substitution tVar2AType = new Substitution(left, right);
-			List<Substitution> tVar2ATypeList = new Vector<Substitution>();
-			tVar2ATypeList.add(tVar2AType);
-			return tVar2ATypeList;
-
-		}else if(left instanceof TVarAType && right instanceof TVarAType) {
-			if(left == right) {
-				return null;
-			}else if(left != right){
-				if(left.getTypeInfo() == "" && right.getTypeInfo() == "") {
-					Substitution tVar2TVar = new Substitution(left, right);
-					List<Substitution> tVar2TVarList = new Vector<Substitution>();
-					tVar2TVarList.add(tVar2TVar);
-					return tVar2TVarList;
-				}
-			}else if(left.getTypeInfo().equals(right.getTypeInfo())){
-				return null;
-			}else {
-				System.err.println("Type error: " + left.getTypeInfo() + " ---- " + right.getTypeInfo());
-				System.exit(enVersion);
-				return null;
-			}
-		}else {
-			System.err.println("Type error: " + left.getTypeInfo() + " ---- " + right.getTypeInfo());
-			System.exit(enVersion);
-		}
-		return null;
-	} 
-	*/
-	private void updateEnvironment(List<Substitution> tVar2ATypeList) {
-		if(null != tVar2ATypeList && tVar2ATypeList.size() != 0){
-			for(Substitution st : tVar2ATypeList) {
-				AbstractAType inEnvTypeVar = st.getLeft();
-				AbstractAType value = null;
-				if(env.containsValue(st.getLeft())) {
-					value = st.getRight();
-				}else if (env.containsValue(st.getRight())) {
-					inEnvTypeVar = st.getRight();
-					value = st.getLeft();
-				}else {
-					continue;
-				}
-							
-				for(AbstractExpr ae : env.getKeyList()) {
-					if(env.get(ae).equals(inEnvTypeVar)) {
-						//only refine the environment at least 
-						//when it can get more or equal accurate information
-						if(env.get(ae).getTypeInfo() == "" && value.getTypeInfo() != "")
-							//env.setValue(ae, value);
-							env.get(ae).setTypeInfo(value.getTypeInfo());
-					}
-				}
-				
-			}
-			
-		}
-	}
-	
-	private void populateSubstitution(List<Substitution> target, List<Substitution> source) {
-		if(null != source && null != target){
-			if(source.size() != 0) {
-				target.addAll(source);		
-			}
-		}
-		System.out.println(target.size());
-		
-		System.out.println("************************");
-		for(Substitution st : target) {
-			System.out.println(st.getLeft().toString() + " ------- " + st.getRight().toString());
-			System.out.println(st.getLeft().getTypeInfo() + " ------- " + st.getRight().getTypeInfo());
-		}
-		System.out.println("************************");
-	}
-	
-	private Set<AbstractAType> refineType(AbstractAType key, List<Substitution> substitutionList) {
-		if(substitutionList != null && substitutionList.size() != 0) {
-			String typeInfo = "";
-			Set<AbstractAType> collection = new HashSet<AbstractAType>();
-			for(Substitution st : substitutionList) {
-				if(st.getLeft() == key && st.getRight() != key) {
-					if(st.getRight().getTypeInfo().length() > typeInfo.length()) {
-						typeInfo = st.getRight().getTypeInfo();
-					}
-					collection.add(st.getRight());
-				}else if(st.getRight() == key && st.getLeft() != key) {
-					collection.add(st.getLeft());
-					if(st.getLeft().getTypeInfo().length() > typeInfo.length()) {
-						typeInfo = st.getLeft().getTypeInfo();
-					}
-				}
-			}
-			//make the information more concrete
-			for(AbstractAType at : collection) {
-				if(at instanceof TVarAType) {
-					at.setTypeInfo(typeInfo);
-				}
-			}
-			if(collection.size() == 0)
-				return null;
-			else 
-				return collection;
-		}
-		return null;
-	}
-	/*
-	private void refineType(AbstractAType key, List<Substitution> tVar2TypeList) {
-		if(null != tVar2TypeList && tVar2TypeList.size() != 0){
-			//collect all related type variable
-			/*
-			for(Substitution st : tVar2TypeList) {
-				//only refine when the right hand is more accurate
-				
-				if(st.getLeft().equals(key) && st.getRight().getTypeInfo() != "") {
-					if(key.getTypeInfo() == "" ||
-					   (key instanceof ListAType && key.getTypeInfo() == "List<>")) {
-						key.setSibling(st.getRight());
-						System.out.println(key.getTypeInfo());
-					}
-				}else if(st.getRight().equals(key) && st.getLeft().getTypeInfo() != "") {
-					if(key.getTypeInfo() == "" ||
-					   (key instanceof ListAType && key.getTypeInfo() == "List<>")) {
-						key.setSibling(st.getLeft());
-						System.out.println(key.getTypeInfo());
-					}
-				}
-			}
-			
-			//key has no information
-			if(!isTypeConcrete(key)) {
-				Set<AbstractAType> group = new HashSet<AbstractAType>();
-				group.add(key);
-				//collect all the variable needed to be refined.
-				for(Substitution st : tVar2TypeList) {
-					if(group.contains(st.getLeft())){
-						group.add(st.getRight());
-						if(isTypeConcrete(st.getRight())) {
-							
-						}
-					}else if(group.contains(st.getRight())) {
-						group.add(st.getLeft());
-						if(isTypeConcrete(st.getLeft())) {
-							
-						}
-					}
-				}
-				if(isTypeConcrete(key)){
-					//update all the group member;
-					for(AbstractAType at : group) {
-						
-					}
-				}
-			}
-			
-			System.out.println(key.getTypeInfo());
-		}
-	}
-	private boolean isTypeConcrete(AbstractAType at) {
-		//methodTraceInfo();
-		if(null == at) {
-			System.err.println("Error in isTypeConcrete()");
-		}else {
-			if(at.getTypeInfo() == "") {
-				return false;
-			}else {
-				if(at instanceof ListAType) {
-					AbstractAType temp = at;
-					while(temp != null && !(temp instanceof ListAType)) {
-						temp = temp.getSibling();
-					}
-					if(temp == null || temp.getTypeInfo() == "") {
-						return false;
-					}
-				}
-			}
-		}
-		
-		return true;
-	}
-	*/
-
-	/*
-	private void updateType(AbstractAType target, AbstractAType source) {
-		if(target instanceof IntAType ||
-		   target instanceof BoolAType) {
-			
-		}else if(target instanceof TVarAType) {
-			target.setSibling(source);
-		}else if(target instanceof ListAType) {
-			
-		}
-	}
-	
-	private boolean isListTContainsTVar(AbstractAType listT, AbstractAType tVar){
-		
-		AbstractAType core = listT;
-		while(core.getSibling() != null) {
-			core = core.getSibling();
-		}
-		
-		if(core == tVar && core.getTypeInfo() == "" && tVar.getTypeInfo() == "") {
-			return true;
-		}
-		
-		return false;
-	}
-	*/
-	private void methodTraceInfo() {
-		System.out.println(Thread.currentThread().getStackTrace()[2].getMethodName());
 	}
 }
