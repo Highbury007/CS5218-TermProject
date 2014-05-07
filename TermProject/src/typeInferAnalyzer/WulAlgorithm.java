@@ -46,10 +46,8 @@ public class WulAlgorithm {
 	public boolean isTypeCheckPass(Pgm program) {
 		//construct the mapping from function Name to expression
 		if(program.getFunDefs() != null) {
-			//System.out.println(program.getFunDefs().size());
 			for(AbstractExpr ae : program.getFunDefs()) {
 				funName2FunExpr.put(ae.getExprAttribute(), ae);
-				//funName2FunVar.put(ae.getExprAttribute(), value);
 			}
 		}
 
@@ -60,6 +58,8 @@ public class WulAlgorithm {
 			for(AbstractExpr ae : program.getFunDefs()) {				
 				wULMethodDecider(ae);
 				System.out.println("------------------------------------");
+				System.out.println(ae.getExprAttribute());
+				
 				for(AbstractExpr var : ae.getAbstractExpressions()) {
 					System.out.println(env.get(var).toString());
 					System.out.println(env.get(var).getTypeInfo());
@@ -161,10 +161,10 @@ public class WulAlgorithm {
 			while(updated) {
 				updated = false;
 				for(Substitution st : refinements) {
-					//if(envTVarSet.contains(st.getLeft()) || envTVarSet.contains(st.getRight())) {
-					//	result.add(st);
-					updated |= envTVarSet.add(st.getLeft());
-					updated |= envTVarSet.add(st.getRight());
+					if(envTVarSet.contains(st.getLeft()) || envTVarSet.contains(st.getRight())) {
+						updated |= envTVarSet.add(st.getLeft());
+						updated |= envTVarSet.add(st.getRight());
+					}
 					if(updated) {
 						result.add(st);
 					}
@@ -193,8 +193,7 @@ public class WulAlgorithm {
 					if(env.get(ae).equals(inEnvTypeVar)) {
 						//only refine the environment at least 
 						//when it can get more or equal accurate information
-						if(env.get(ae).getTypeInfo() == "" && value.getTypeInfo() != "")
-							//env.setValue(ae, value);
+						if(env.get(ae).getTypeInfo() == "" && value.getTypeInfo().length() > 0)
 							env.get(ae).setTypeInfo(value.getTypeInfo());
 					}
 				}	
@@ -208,6 +207,7 @@ public class WulAlgorithm {
 				target.addAll(source);		
 			}
 		}
+		/*
 		System.out.println(target.size());
 		
 		System.out.println("************************");
@@ -216,12 +216,24 @@ public class WulAlgorithm {
 			System.out.println(st.getLeft().getTypeInfo() + " ------- " + st.getRight().getTypeInfo());
 		}
 		System.out.println("************************");
+		*/
+		for(Substitution st : target) {
+			String leftInfo = st.getLeft().getTypeInfo();
+			String rightInfo = st.getRight().getTypeInfo();
+			String typeInfo = (leftInfo.length() > rightInfo.length() ? leftInfo : rightInfo);
+			if(st.getLeft() instanceof TVarAType){
+				st.getLeft().setTypeInfo(typeInfo);
+			}
+			if(st.getRight() instanceof TVarAType) {
+				st.getRight().setTypeInfo(typeInfo);
+			}
+		}
 	}
 	
 	
 	private Set<AbstractAType> refineType(AbstractAType key, List<Substitution> substitutionList) {
 		if(substitutionList != null && substitutionList.size() != 0) {
-			String typeInfo = "";
+			String typeInfo = key.getTypeInfo();
 			//make it more accurate
 			Set<AbstractAType> collection = new HashSet<AbstractAType>();
 			collection.add(key);
@@ -249,7 +261,8 @@ public class WulAlgorithm {
 			//make the information more concrete
 			for(AbstractAType at : collection) {
 				if(at instanceof TVarAType) {
-					at.setTypeInfo(typeInfo);
+					if(typeInfo.length() > at.getTypeInfo().length())	
+						at.setTypeInfo(typeInfo);
 				}
 			}
 			
@@ -270,7 +283,8 @@ public class WulAlgorithm {
 	//*******************************************************Wul Algorithm***************************************************//
 	//apply the named function rule
 	private Entry<AbstractAType, List<Substitution>> wULFunDefExpr(AbstractExpr input) {
-		methodTraceInfo();
+		//System.out.println("Fun Define :" + input.getExprAttribute());
+		//methodTraceInfo();
 		//if the function has been called before, it must has been analyzed
 		//used for outer loop
 		String funName = ((FunDefExpr) input).getFunName();
@@ -278,22 +292,22 @@ public class WulAlgorithm {
 			return wULMethodDecider(funName2FunVar.get(funName));
 		}
 		
-
 		AbstractAType bodyTypeVar = null;
 		AbstractAType value = null;
 		//generate fresh typeVariables		
-		for(AbstractExpr ae : input.getAbstractExpressions()) {
-			 value = typeBuilder.getATypeInstance(ae);
-			
+		List<AbstractExpr> varList = ((FunDefExpr) input).getFunVarList();
+		for(int i = 0; i < varList.size(); i ++) {
+			value = typeBuilder.getATypeInstance(varList.get(i));
 			if(null == value) {
 				System.err.println(this.toString() + " :null pointer error!");
 				System.exit(enVersion);
 			}
-			//construct the environment
-			env.put(ae, value);
+			env.put(varList.get(i), value);
 		}
+		
 		//the function body type variable
-		bodyTypeVar = value;
+		bodyTypeVar = new TVarAType();
+		env.put(((FunDefExpr) input).getFunBody(), bodyTypeVar);
 		
 		//generate a function variable and put it into environment;
 		AbstractExpr funTypeVar = new VariableExpr(funName);
@@ -329,7 +343,7 @@ public class WulAlgorithm {
 	}
 		
 	private Entry<AbstractAType, List<Substitution>> wULConstantExpr(AbstractExpr input) {
-		methodTraceInfo();
+		//methodTraceInfo();
 		AbstractAType resultType = typeBuilder.getATypeInstance(input);
 		
 		Entry<AbstractAType, List<Substitution>> result 
@@ -339,7 +353,7 @@ public class WulAlgorithm {
 	} 
 	
 	private Entry<AbstractAType, List<Substitution>> wULNullListExpr(AbstractExpr input) {
-		methodTraceInfo();
+		//methodTraceInfo();
 		//denote Null list as a List<?> first
 		AbstractAType listT = typeBuilder.getATypeInstance(input);
 
@@ -350,7 +364,7 @@ public class WulAlgorithm {
 	} 
 	
 	private Entry<AbstractAType, List<Substitution>> wULVariableExpr(AbstractExpr input) {
-		methodTraceInfo();
+		//methodTraceInfo();
 		//all variable should be defined first, 
 		//otherwise undefined behavior
 		//return error
@@ -361,14 +375,12 @@ public class WulAlgorithm {
 		}else {
 			Entry<AbstractAType, List<Substitution>> result 
 				= new SimpleEntry<AbstractAType, List<Substitution>>(env.get(input), null);
-			//System.out.println(env.get(input).toString());
 			return result;
 		}
 	} 
 	
 	private Entry<AbstractAType, List<Substitution>> wULIfExpr(AbstractExpr input) {
-		methodTraceInfo();
-
+		//methodTraceInfo();
 		//apply rule to condition
 		Entry<AbstractAType, List<Substitution>> conditionTs 
 			= wULMethodDecider(((IfExpr) input).getCondition());
@@ -426,8 +438,9 @@ public class WulAlgorithm {
 		return result;
 	} 
 	
-	private Entry<AbstractAType, List<Substitution>> wULFunCallExpr(AbstractExpr input) {	
-		methodTraceInfo();
+	private Entry<AbstractAType, List<Substitution>> wULFunCallExpr(AbstractExpr input) {
+		//System.out.println("Fun Call :" + input.getExprAttribute());
+		//methodTraceInfo();
 		//get the function type
 		Entry<AbstractAType, List<Substitution>> funVarTs = null;		
 		//attention
@@ -488,7 +501,7 @@ public class WulAlgorithm {
 	} 
 	
 	private Entry<AbstractAType, List<Substitution>> wULBinaryOpExpr(AbstractExpr input) {
-		methodTraceInfo();
+		//methodTraceInfo();
 		//apply rule to the left operand
 		Entry<AbstractAType, List<Substitution>> leftOpdTs 
 			= wULMethodDecider(((BinaryOpExpr) input).getLeftOpd());
@@ -524,11 +537,10 @@ public class WulAlgorithm {
 		Entry<AbstractAType, List<Substitution>> result 
 			= new SimpleEntry<AbstractAType, List<Substitution>>(optAType, resultTSInfo);
 		return result;
-
 	} 
 
 	private Entry<AbstractAType, List<Substitution>> wULConsExpr(AbstractExpr input) {
-		methodTraceInfo();
+		//methodTraceInfo();
 		Entry<AbstractAType, List<Substitution>> consHeadTs 
 			= wULMethodDecider(((ConsExpr) input).getHeadExpr());
 		
@@ -543,9 +555,8 @@ public class WulAlgorithm {
 		List<Substitution> consTailRefinements = new Vector<Substitution>();
 		populateSubstitution(consTailRefinements, consTailTs.getValue());
 		populateSubstitution(consTailRefinements, collectEnvRefinements(consHeadTs.getValue()));
-		List<Substitution> listTypeUnification = unifyType(consTailTs.getKey(), consTailTs.getValue(), listT, null);
+		List<Substitution> listTypeUnification = unifyType(consTailTs.getKey(), consTailRefinements, listT, null);
 		populateSubstitution(listTypeUnification, consTailTs.getValue());
-		
 		//the cons's tail list core's type must be the same as the cons's head's type
 		List<Substitution> resultTSInfo = new Vector<Substitution>();
 		populateSubstitution(resultTSInfo, consHeadTs.getValue());
@@ -554,18 +565,17 @@ public class WulAlgorithm {
 		
 		List<Substitution> listCoreUnification 
 			= unifyType(consHeadTs.getKey(), resultTSInfo, ((ListAType) listT).getListCore(), listTypeUnification);
-			  //unifyType(consHeadTs.getKey(), resultTSInfo, consTailTs.getKey().getSibling(), listTypeUnification);
 		populateSubstitution(resultTSInfo, listCoreUnification);
 		
 		//result type must be list type
 		Entry<AbstractAType, List<Substitution>> result 
-			= new SimpleEntry<AbstractAType, List<Substitution>>(consTailTs.getKey(), resultTSInfo);
+			= new SimpleEntry<AbstractAType, List<Substitution>>(listT, resultTSInfo);
 		
 		return result;
 	} 
 
 	private Entry<AbstractAType, List<Substitution>> wULCarExpr(AbstractExpr input) {
-		methodTraceInfo();
+		//methodTraceInfo();
 		Entry<AbstractAType, List<Substitution>> exprTs
 			= wULMethodDecider(((CarExpr) input).getEpxr());
 		
@@ -581,13 +591,13 @@ public class WulAlgorithm {
 		
 		//result type must be the list core's type
 		Entry<AbstractAType, List<Substitution>> result 
-			= new SimpleEntry<AbstractAType, List<Substitution>>(exprTs.getKey().getSibling(), resultTSInfo);
+			= new SimpleEntry<AbstractAType, List<Substitution>>(listT.getSibling(), resultTSInfo);
 		
 		return result;
 	} 
 
 	private Entry<AbstractAType, List<Substitution>> wULCdrExpr(AbstractExpr input) {
-		methodTraceInfo();
+		//methodTraceInfo();
 		Entry<AbstractAType, List<Substitution>> exprTs 
 			= wULMethodDecider(((CdrExpr) input).getExpr());
 		
@@ -608,7 +618,7 @@ public class WulAlgorithm {
 	} 
 
 	private Entry<AbstractAType, List<Substitution>> wULNullListTestExpr(AbstractExpr input) {
-		methodTraceInfo();
+		//methodTraceInfo();
 		Entry<AbstractAType, List<Substitution>> nullListTestTs 
 			= wULMethodDecider(((NullListTestExpr) input).getExpr());
 		
@@ -773,7 +783,9 @@ public class WulAlgorithm {
 				}
 			}
 		}
-		tVar.setTypeInfo(listT.getTypeInfo());
+		
+		if(tVar.getTypeInfo().length() < listT.getTypeInfo().length())
+			tVar.setTypeInfo(listT.getTypeInfo());
 		Substitution st =  new Substitution(tVar, listT);
 		List<Substitution> result = new Vector<Substitution>();
 		result.add(st);
@@ -954,8 +966,7 @@ public class WulAlgorithm {
 					}
 				}
 			}
-		}
-		
+		}	
 		return null;
 	}
 }

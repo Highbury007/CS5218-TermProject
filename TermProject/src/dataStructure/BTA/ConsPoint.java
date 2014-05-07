@@ -11,7 +11,7 @@ public class ConsPoint extends AbstractValue {
 	 */
 	public ConsPoint() {
 		// TODO Auto-generated constructor stub
-		System.out.println("Cons Point");
+		//System.out.println("Cons Point");
 	}
 
 	@Override

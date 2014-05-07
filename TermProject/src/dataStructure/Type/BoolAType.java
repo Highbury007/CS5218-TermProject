@@ -10,7 +10,7 @@ public class BoolAType extends AbstractAType {
 	private BoolAType() {
 		// TODO Auto-generated constructor stub
 		siblingType = null;
-		System.out.println(this.toString());
+		//System.out.println(this.toString());
 	}
 	
 	private static class SingletonHolder {
@@ -18,7 +18,7 @@ public class BoolAType extends AbstractAType {
 	}
 	
 	public static AbstractAType getInstance() {
-		System.out.println(SingletonHolder.INSTANCE.toString());
+		//System.out.println(SingletonHolder.INSTANCE.toString());
 		return SingletonHolder.INSTANCE;
 	}
 	

@@ -65,7 +65,7 @@ public class BinaryOpExpr extends AbstractExpr {
 	@Override
 	public void populateExpr(Node xmlNode, ExprFactory builder) {
 		this.exprAttribute = (xmlNode.getAttributes().item(0).getNodeValue());
-		System.out.println(" :" + this.exprAttribute);
+		//System.out.println(" :" + this.exprAttribute);
 		Node entryNode = xmlNode.getFirstChild();
 		populateHelper(entryNode, builder, this);
 		//System.out.println(this.expressions.size());

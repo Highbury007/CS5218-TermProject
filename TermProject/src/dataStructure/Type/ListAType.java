@@ -10,7 +10,7 @@ public class ListAType extends AbstractAType {
 	public ListAType() {
 		// TODO Auto-generated constructor stub
 		siblingType = null;
-		System.out.println(this.toString());
+		//System.out.println(this.toString());
 	}
 
 	public AbstractAType getListCore() {

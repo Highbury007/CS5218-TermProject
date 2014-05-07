@@ -18,7 +18,7 @@ public class Bottom extends AbstractValue {
 	}
 	
 	public static AbstractValue getInstance() {
-		System.out.println("Bottom");
+		//System.out.println("Bottom");
 		return SingletonHolder.INSTANCE;
 	}
 

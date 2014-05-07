@@ -12,7 +12,7 @@ public class TVarAType extends AbstractAType {
 		siblingType = null;
 		typeInfo = new String();
 		typeInfo = "";
-		System.out.println(this.toString());
+		//System.out.println(this.toString());
 	}
 	@Override
 	public String getTypeInfo() {

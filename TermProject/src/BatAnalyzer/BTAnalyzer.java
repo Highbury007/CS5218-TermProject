@@ -38,7 +38,7 @@ public class BTAnalyzer {
 	private static final int PRINTALL = 1;
 	private static final int PRINTFUNSIGN = 2;
 	private static final int PRINTCPAP = 3;
-	private static final int PRINTNONE = 4;
+	//private static final int PRINTNONE = 4;
 	
 	private Pgm programExpr;
 	
@@ -150,6 +150,10 @@ public class BTAnalyzer {
 					System.out.print(para.toStr() + " ");
 				}
 				System.out.println(") -> " + funSign.getFunBodyAbsV().toStr());
+				if(funSign.getFunBodyAbsV() instanceof ConsPoint) {
+					System.out.println(funSign.getFunBodyAbsV().toString());
+				}
+				System.out.println("");
 			}
 		}
 		if(printMode == PRINTALL || printMode == PRINTCPAP) {
@@ -158,6 +162,13 @@ public class BTAnalyzer {
 				for(AbstractValue key : cp2Ap.keySet()) {
 					System.out.println(key.toString() + " <" + cp2Ap.get(key).getHead().toStr()
 							+ ", " + cp2Ap.get(key).getTail().toStr() + "> ");
+					if(cp2Ap.get(key).getHead() instanceof ConsPoint) {
+						System.out.println(cp2Ap.get(key).getHead().toString());
+					}
+					if(cp2Ap.get(key).getTail() instanceof ConsPoint) {
+						System.out.println(cp2Ap.get(key).getTail().toString());
+					}
+					System.out.println("");
 				}
 			}
 		}
@@ -252,7 +263,7 @@ public class BTAnalyzer {
 			signBefore.set(i, tempResult.getKey());
 		}
 		
-		printAbsEnv(PRINTALL);
+		//printAbsEnv(PRINTALL);
 		
 		return result;
 	}
@@ -269,7 +280,7 @@ public class BTAnalyzer {
 		ap.setHead(headAfter.getKey());
 		ap.setTail(tailAfter.getKey());
 		
-		printAbsEnv(PRINTALL);
+		//printAbsEnv(PRINTALL);
 		
 		return (headAfter.getValue() | tailAfter.getValue());
 	}
@@ -304,10 +315,8 @@ public class BTAnalyzer {
 
 		if(conditionAbsV instanceof Bottom) {
 			return Bottom.getInstance();
-		}else if(conditionAbsV instanceof Stat
-			  && trueBranchAbsV instanceof Stat
-			  && falseBranchAbsV instanceof Stat) {
-			return Stat.getInstance();
+		}else if(conditionAbsV instanceof Stat) {
+			return (absV2Int(trueBranchAbsV) >= absV2Int(falseBranchAbsV) ? trueBranchAbsV : falseBranchAbsV);			 			
 		}else {
 			return Dyn.getInstance();
 		}
@@ -336,7 +345,7 @@ public class BTAnalyzer {
 		//already analyzed
 		List<AbstractExpr> paraList = ((FunCallExpr) sourceExpr).getArgList();
 		List<AbstractExpr> varList = ((FunDefExpr) funName2FunExpr.get(funName)).getFunVarList();
-		System.out.println("para: " + paraList.size());
+		//System.out.println("para: " + paraList.size());
 		BindingTimeEnv bTAEnvNow = new BindingTimeEnv();
 		Signature tempFunSign = new Signature();
 		for(int i = 0; i < paraList.size(); i ++) {
